@@ -248,9 +248,11 @@ def detection_workflow(
         # Array of all the cloud bands for one time
         for icb, iblob in enumerate(list_of_cloud_bands[idx]):
             if iblob:
-                cloud_bands_map[idx] += iblob.cloud_band_array * iblob.id_
+                # Cast to uint64 before addition
+                cloud_bands_map[idx] += (
+                    iblob.cloud_band_array.astype(np.uint64) * np.uint64(iblob.id_)
+                )
 
-    #
     logger.info("Cloud band detection done")
     return fill_binarize_data, dilation, labelled_blobs, labelled_candidates, cloud_bands_map, list_of_candidates, list_of_cloud_bands
 
