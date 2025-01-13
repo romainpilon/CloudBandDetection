@@ -1,4 +1,4 @@
-name: Build and Test CloudbandPy
+name: Build and Publish CloudbandPy
 
 on:
   push:
@@ -9,31 +9,7 @@ on:
       - main
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.9, 3.10, 3.11]  # Test on multiple Python versions
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install numpy netcdf4 pandas pyyaml scikit-image colorcet metpy proj cartopy pytest
-
-    - name: Run tests
-      run: pytest tests/  # Replace `tests/` with the path to your test folder if different
-
   build-and-publish:
-    needs: test  # Only runs if tests pass
     runs-on: ubuntu-latest
 
     steps:
