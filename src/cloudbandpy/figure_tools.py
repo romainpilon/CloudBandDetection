@@ -353,59 +353,59 @@ def plot_time_evolution_blobs(
     -> blobs can be labelled_blobs, labelled_candidates or cloud_bands_over_time
     """
     logger = logging.getLogger("figure_tools.plot_time_evolution_blobs")
-    nrows = 4
-    ncols = 4
+    nrows, ncols = 4, 4
     if len(listofdates) != nrows * ncols:
-        logger.warning("")
         raise ValueError(f"This figure is made to show 16 days. Length of your data is {len(blobs)}")
-    else:
-        lat_north, lat_south = round(lats[0]), round(lats[-1])
-        daystart = f"{listofdates[0].day}-{listofdates[0].strftime('%m')}-{listofdates[0].year}"
-        dayend = f"{listofdates[-1].day}-{listofdates[-1].strftime('%m')}-{listofdates[-1].year}"
-        #
-        fig, axs = plt.subplots(
-            nrows=nrows,
-            ncols=ncols,
-            subplot_kw={"projection": ccrs.PlateCarree(central_longitude=180)},
-            figsize=(14, 8),
+    
+    # Normalize the IDs to sequential integers
+    unique_ids = np.unique(blobs)
+    id_mapping = {val: idx for idx, val in enumerate(unique_ids)}
+    normalized_blobs = np.vectorize(id_mapping.get)(blobs)
+
+    fig, axs = plt.subplots(
+        nrows=nrows,
+        ncols=ncols,
+        subplot_kw={"projection": ccrs.PlateCarree(central_longitude=180)},
+        figsize=(14, 8),
+    )
+    
+    lat_north, lat_south = round(lats[0]), round(lats[-1])
+    daystart = f"{listofdates[0].day}-{listofdates[0].strftime('%m')}-{listofdates[0].year}"
+    dayend = f"{listofdates[-1].day}-{listofdates[-1].strftime('%m')}-{listofdates[-1].year}"
+    
+    for inc, ax in enumerate(axs.ravel()):
+        # Mask zero values (no cloud bands)
+        masked_blobs = np.ma.masked_where(normalized_blobs[inc] == 0, normalized_blobs[inc])
+        
+        ax.contourf(
+            lons,
+            lats,
+            masked_blobs,
+            transform=ccrs.PlateCarree(),
+            levels=np.arange(len(unique_ids) + 1),  # One level per unique ID
+            cmap=cmap,
         )
-        for inc, ax in enumerate(axs.ravel()):
-            ax.contourf(
-                lons,
-                lats,
-                np.ma.masked_where(blobs[inc] == 0, blobs[inc]),
-                transform=ccrs.PlateCarree(),
-                levels=range(20),
-                cmap=cmap,
-            )
-            lonticks = np.concatenate((np.arange(20, 180, 40), np.arange(-200, 0, 40)))
-            latticks = np.arange(-90, 110, 20)
-            ax.set_xticks(lonticks, crs=ccrs.PlateCarree())
-            ax.set_yticks(latticks, crs=ccrs.PlateCarree())
-            ax.xaxis.set_major_formatter(LON_FORMAT)
-            ax.yaxis.set_major_formatter(LAT_FORMAT)
-            ax.minorticks_on()
-            ax.xaxis.set_minor_locator(MultipleLocator(5))
-            ax.xaxis.set_major_locator(MultipleLocator(40))
-            ax.set_extent([wrapTo180(lons)[-1], wrapTo180(lons)[0], lat_south, lat_north])
-            ax.set_ylim([lat_south, lat_north])
-            ax.coastlines(color="#474747")
-            # \u200A is a half space
-            ax.set_title(
-                f"{listofdates[inc].day}\u200A{listofdates[inc].strftime('%b')}\u200A{listofdates[inc].year}",
-                loc="left",
-            )
-        #
-        fig.subplots_adjust(wspace=0.25, hspace=0.025)
-        if show:
-            plt.show(block=False)
-        if save:
-            plt.savefig(
-                f"{config['dir_figures']}/{blobname}_{daystart}_to_{dayend}_{config['domain']}.png",
-                dpi=250,
-                bbox_inches="tight",
-            )
+        lonticks = np.concatenate((np.arange(20, 180, 40), np.arange(-200, 0, 40)))
+        latticks = np.arange(-90, 110, 20)
+        ax.set_xticks(lonticks, crs=ccrs.PlateCarree())
+        ax.set_yticks(latticks, crs=ccrs.PlateCarree())
+        ax.xaxis.set_major_formatter(LON_FORMAT)
+        ax.yaxis.set_major_formatter(LAT_FORMAT)
+        ax.coastlines(color="#474747")
+        ax.set_title(f"{listofdates[inc].day}\u200A{listofdates[inc].strftime('%b')}\u200A{listofdates[inc].year}", loc="left")
+        ax.set_extent([wrapTo180(lons)[-1], wrapTo180(lons)[0], lat_south, lat_north])
+        ax.set_ylim([lat_south, lat_north])
+    fig.subplots_adjust(wspace=0.25, hspace=0.025)
+    if show:
+        plt.show(block=False)
+    if save:
+        plt.savefig(
+            f"{config['dir_figures']}/{blobname}_{daystart}_to_{dayend}_{config['domain']}.png",
+            dpi=250,
+            bbox_inches="tight",
+        )
     return
+
 
 
 def plot_time_evolution_inputvar_cloubdands(
@@ -419,19 +419,30 @@ def plot_time_evolution_inputvar_cloubdands(
     save: bool = False,
 ):
     """
-    Figure to show evolution of clouds bands over the input variale during 15 days
+    Figure to show evolution of clouds bands over the input variable during 15 days
     Plot one date per panel.
     -> by default, the input variable is OLR
     """
     nrows = 4
     ncols = 4
+    if len(listofdates) != nrows * ncols:
+        raise ValueError(f"This figure is made to show 16 days. Length of your data is {len(listofdates)}")
+
+    # Normalize the cloud_bands_over_time for better visualization
+    unique_ids = np.unique(cloud_bands_over_time)
+    id_mapping = {val: idx for idx, val in enumerate(unique_ids)}
+    normalized_cloud_bands = np.vectorize(id_mapping.get)(cloud_bands_over_time)
+
     lat_north, lat_south = round(lats[0]), round(lats[-1])
     daystart = f"{listofdates[0].day}-{listofdates[0].strftime('%m')}-{listofdates[0].year}"
     dayend = f"{listofdates[-1].day}-{listofdates[-1].strftime('%m')}-{listofdates[-1].year}"
+
     fig, axs = plt.subplots(
         nrows=nrows, ncols=ncols, subplot_kw={"projection": ccrs.PlateCarree(central_longitude=180)}, figsize=(13, 7)
     )
+
     for inc, ax in enumerate(axs.ravel()):
+        # Plot the input variable
         ax.contourf(
             lons,
             lats,
@@ -441,15 +452,18 @@ def plot_time_evolution_inputvar_cloubdands(
             cmap="binary",
             extend="both",
         )
+
+        # Overlay the normalized cloud bands
         ax.contourf(
             lons,
             lats,
-            np.ma.masked_where(cloud_bands_over_time[inc] == 0, cloud_bands_over_time[inc]),
+            np.ma.masked_where(normalized_cloud_bands[inc] == 0, normalized_cloud_bands[inc]),
             transform=ccrs.PlateCarree(),
-            levels=len(cloud_bands_over_time[inc]),
+            levels=np.arange(len(unique_ids) + 1),
             cmap="RdYlBu",
             alpha=0.7,
         )
+
         lonticks = np.concatenate((np.arange(20, 180, 40), np.arange(-200, 0, 40)))
         latticks = np.arange(-90, 110, 20)
         ax.set_xticks(lonticks, crs=ccrs.PlateCarree())
@@ -463,7 +477,7 @@ def plot_time_evolution_inputvar_cloubdands(
         ax.set_ylim([lat_south, lat_north])
         ax.coastlines(color="white")
         ax.set_title(f"{listofdates[inc].day} {listofdates[inc].strftime('%b')} {listofdates[inc].year}", loc="left")
-    #
+
     fig.subplots_adjust(wspace=0.25, hspace=0.025)
     if show:
         plt.show(block=False)
@@ -472,3 +486,4 @@ def plot_time_evolution_inputvar_cloubdands(
             f"{config['dir_figures']}/OLR_CB_{daystart}_{dayend}_{config['domain']}.png", dpi=250, bbox_inches="tight"
         )
     return
+
